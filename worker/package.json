@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
+    "bundle": "node build-bundle.mjs",
     "db:init": "wrangler d1 execute learning-bot-db --remote --file=./schema.sql",
     "db:init:local": "wrangler d1 execute learning-bot-db --local --file=./schema.sql"
   },
