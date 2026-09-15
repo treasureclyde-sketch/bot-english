@@ -15,6 +15,7 @@ const COMMANDS = [
   { command: "report", description: "недельный отчёт" },
   { command: "tz", description: "часовой пояс" },
   { command: "csca", description: "ресурсы по математике" },
+  { command: "duo", description: "про Duolingo Test" },
   { command: "help", description: "помощь" },
 ];
 

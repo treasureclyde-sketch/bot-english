@@ -1,6 +1,6 @@
 // Слой 1: доступ к D1. Каждая функция принимает env (в env.DB — база).
 
-import { DEFAULT_TZ, DEFAULT_TRACKS } from "./config.js";
+import { DEFAULT_TZ, DEFAULT_TRACKS, TRACK_6MIN, TRACK_CSCA, TRACKS_SCHEMA_VERSION } from "./config.js";
 
 export async function ensureUser(env, userId, chatId) {
   const existing = await env.DB.prepare("SELECT user_id FROM profile WHERE user_id=?")
@@ -22,7 +22,35 @@ export async function ensureUser(env, userId, chatId) {
     ).bind(userId, tid, c.enabled, c.cadence, c.n_days, c.weekday, c.hour, c.minute, c.duration_min, null));
   }
   await env.DB.batch(stmts);
+  await setMeta(env, userId, "tracks_schema_v", TRACKS_SCHEMA_VERSION);
   return true;
+}
+
+// Догоняет треки существующего пользователя: добавляет новые (Duolingo) и один
+// раз обновляет кадентности до актуальных дефолтов. Идемпотентно (версия в meta).
+export async function syncTracks(env, userId) {
+  const rows = await getTracks(env, userId);
+  const existing = new Set(rows.map((t) => t.track_id));
+  const stmts = [];
+  for (const [tid, c] of Object.entries(DEFAULT_TRACKS)) {
+    if (existing.has(tid)) continue;
+    stmts.push(env.DB.prepare(
+      "INSERT INTO tracks (user_id, track_id, enabled, cadence, n_days, weekday, hour, minute, duration_min, next_fire_at, content_index) VALUES (?,?,?,?,?,?,?,?,?,?,0)"
+    ).bind(userId, tid, c.enabled, c.cadence, c.n_days, c.weekday, c.hour, c.minute, c.duration_min, null));
+  }
+  if (stmts.length) await env.DB.batch(stmts);
+
+  const ver = Number(await getMeta(env, userId, "tracks_schema_v", "1") || "1");
+  if (ver < TRACKS_SCHEMA_VERSION) {
+    for (const tid of [TRACK_6MIN, TRACK_CSCA]) {
+      const c = DEFAULT_TRACKS[tid];
+      // Время (hour/minute) не трогаем — вдруг пользователь его менял.
+      await updateTrack(env, userId, tid, {
+        cadence: c.cadence, n_days: c.n_days, duration_min: c.duration_min, next_fire_at: null,
+      });
+    }
+    await setMeta(env, userId, "tracks_schema_v", TRACKS_SCHEMA_VERSION);
+  }
 }
 
 export async function getProfile(env, userId) {

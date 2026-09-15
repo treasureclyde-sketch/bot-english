@@ -3,8 +3,9 @@
 
 import assert from "node:assert";
 import * as sched from "../src/scheduling.js";
-import { sixMinTask, cscaTask, egeTask, CSCA_PROGRAM } from "../src/content.js";
-import { DEFAULT_TRACKS, TRACK_6MIN, TRACK_EGE, QUIET_WEEKDAY } from "../src/config.js";
+import { sixMinTask, cscaTask, egeTask, detTask, CSCA_LESSONS, DET_PROGRAM } from "../src/content.js";
+import { buildReminder, splitChunks } from "../src/reminders.js";
+import { DEFAULT_TRACKS, TRACK_6MIN, TRACK_EGE, TRACK_CSCA, TRACK_DET, QUIET_WEEKDAY } from "../src/config.js";
 
 const TZ = "Asia/Yekaterinburg"; // UTC+5
 let passed = 0;
@@ -74,8 +75,41 @@ t("isQuietDay Sunday", () => {
 t("content progression", () => {
   assert.notEqual(sixMinTask(0).title, sixMinTask(1).title);
   assert.equal(cscaTask(0).block, 1);
-  assert.equal(cscaTask(CSCA_PROGRAM.length + 5).link, "https://csca.app"); // повтор mock
+  assert.equal(cscaTask(CSCA_LESSONS.length + 5).link, "https://csca.app"); // повтор mock
   assert.equal(egeTask(0).minutes, 120);
+});
+
+// CSCA — двуязычный урок; DET ротуется по кругу
+t("csca lesson bilingual", () => {
+  const c = cscaTask(0);
+  assert.ok(c.english && c.russian && c.english !== c.russian);
+  const msg = buildReminder(TRACK_CSCA, 0);
+  assert.equal(msg.markdown, false); // математика без Markdown
+  const joined = msg.chunks.join("\n\n");
+  assert.ok(joined.includes("ENGLISH") && joined.includes("РУССКИЙ"));
+  assert.ok(msg.chunks.every((x) => x.length <= 3500));
+});
+
+t("det rotation", () => {
+  assert.equal(detTask(0).number, 1);
+  assert.equal(detTask(DET_PROGRAM.length).title, detTask(0).title); // по кругу
+  assert.equal(detTask(0).link, "https://englishtest.duolingo.com/prep");
+});
+
+// splitChunks не рвёт короткий текст и режет длинный
+t("splitChunks", () => {
+  assert.deepEqual(splitChunks("aaa\n\nbbb"), ["aaa\n\nbbb"]);
+  const long = Array.from({ length: 50 }, () => "x".repeat(200)).join("\n\n");
+  const parts = splitChunks(long);
+  assert.ok(parts.length > 1 && parts.every((p) => p.length <= 3500));
+});
+
+// Новый трек Duolingo есть в дефолтах, кадентности обновлены
+t("defaults have DET and new cadence", () => {
+  assert.ok(DEFAULT_TRACKS[TRACK_DET]);
+  assert.equal(DEFAULT_TRACKS[TRACK_6MIN].cadence, "every_n_days");
+  assert.equal(DEFAULT_TRACKS[TRACK_6MIN].n_days, 2);
+  assert.equal(DEFAULT_TRACKS[TRACK_CSCA].n_days, 3);
 });
 
 // orderTracks соблюдает приоритет 6min -> csca -> ege

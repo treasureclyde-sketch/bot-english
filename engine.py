@@ -112,11 +112,20 @@ async def _send_reminder(bot, store, user, track, now_local):
         await bot.send_message(user["chat_id"], text, parse_mode=ParseMode.MARKDOWN,
                                reply_markup=kb)
     else:
-        text, link, title, minutes = reminders.build_reminder(tid, idx)
-        hid = store.add_history(uid, tid, sched_date, utcnow(), title, link, "sent")
-        kb = reminders.action_keyboard(hid, link)
-        await bot.send_message(user["chat_id"], text, parse_mode=ParseMode.MARKDOWN,
-                               reply_markup=kb, disable_web_page_preview=False)
+        msg = reminders.build_reminder(tid, idx)
+        hid = store.add_history(uid, tid, sched_date, utcnow(),
+                                msg["title"], msg["link"], "sent")
+        kb = reminders.action_keyboard(hid, msg["link"])
+        pm = ParseMode.MARKDOWN if msg["markdown"] else None
+        chunks = msg["chunks"]
+        # Длинный урок бьётся на несколько сообщений: клавиатура — на последнем.
+        for i, chunk in enumerate(chunks):
+            is_last = i == len(chunks) - 1
+            await bot.send_message(
+                user["chat_id"], chunk, parse_mode=pm,
+                reply_markup=kb if is_last else None,
+                disable_web_page_preview=True,
+            )
         store.bump_content_index(uid, tid)
 
     # Двигаем следующее срабатывание по кадентности.

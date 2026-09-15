@@ -86,9 +86,18 @@ async function sendReminder(env, user, track, now) {
     const { text, kb } = rem.buildSkipQuestion(tid, hid);
     await sendMessage(env, user.chat_id, text, { replyMarkup: kb });
   } else {
-    const { text, link, title } = rem.buildReminder(tid, track.content_index);
-    const hid = await db.addHistory(env, uid, tid, dateStr, title, link, "sent");
-    await sendMessage(env, user.chat_id, text, { replyMarkup: rem.actionKeyboard(hid, link) });
+    const msg = rem.buildReminder(tid, track.content_index);
+    const hid = await db.addHistory(env, uid, tid, dateStr, msg.title, msg.link, "sent");
+    const kb = rem.actionKeyboard(hid, msg.link);
+    const parseMode = msg.markdown ? "Markdown" : null;
+    // Длинный урок бьётся на несколько сообщений — клавиатура на последнем.
+    for (let i = 0; i < msg.chunks.length; i++) {
+      const isLast = i === msg.chunks.length - 1;
+      await sendMessage(env, user.chat_id, msg.chunks[i], {
+        parseMode, disablePreview: true,
+        replyMarkup: isLast ? kb : undefined,
+      });
+    }
     await db.bumpContentIndex(env, uid, tid);
   }
 

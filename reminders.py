@@ -2,6 +2,11 @@
 
 Собирает конкретный текст напоминания и три кнопки действия. Каждое
 напоминание = задание + прямая ссылка + оценка времени + [Готово][Позже][Пропустить].
+
+CSCA присылается как ПОДРОБНЫЙ урок: сначала на английском, потом на русском,
+потом практика. Текст урока математический (со знаками ^, _, *, /), поэтому
+идёт БЕЗ Markdown, чтобы Telegram не поломал разметку. Длинный урок бьётся на
+несколько сообщений — клавиатура вешается на последнее.
 """
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
@@ -9,9 +14,36 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 import config
 import content
 
+# Практический лимит длины сообщения Telegram — 4096. Держим запас.
+CHUNK_LIMIT = 3500
+
+
+def split_chunks(text: str, limit: int = CHUNK_LIMIT):
+    """Бьёт длинный текст на части по границам абзацев (не рвёт абзац)."""
+    paras = text.split("\n\n")
+    chunks, cur = [], ""
+    for p in paras:
+        piece = (("\n\n" + p) if cur else p)
+        if len(cur) + len(piece) <= limit:
+            cur += piece
+        else:
+            if cur:
+                chunks.append(cur)
+            # Абзац сам по себе длиннее лимита — режем жёстко.
+            while len(p) > limit:
+                chunks.append(p[:limit])
+                p = p[limit:]
+            cur = p
+    if cur:
+        chunks.append(cur)
+    return chunks or [text]
+
 
 def build_reminder(track_id: str, content_index: int):
-    """Возвращает (текст, ссылка, заголовок, минуты) для трека."""
+    """Возвращает dict: chunks (list[str]), link, title, minutes, markdown (bool).
+
+    markdown=False означает «слать без parse_mode» (для математических уроков).
+    """
     if track_id == config.TRACK_6MIN:
         number, title, link, minutes = content.six_min_task(content_index)
         text = (
@@ -19,17 +51,33 @@ def build_reminder(track_id: str, content_index: int):
             f"«{title}»\n\n"
             f"Послушать + разобрать словарь. ~{minutes} мин."
         )
-        return text, link, title, minutes
+        return {"chunks": [text], "link": link, "title": title,
+                "minutes": minutes, "markdown": True}
+
+    if track_id == config.TRACK_DET:
+        number, title, desc, tip, link, minutes = content.det_task(content_index)
+        text = (
+            f"🦉 *Duolingo Test #{number}*\n"
+            f"*{title}*\n\n"
+            f"{desc}\n\n"
+            f"💡 {tip}\n\n"
+            f"~{minutes} мин. Практика — по кнопке ниже."
+        )
+        return {"chunks": [text], "link": link, "title": title,
+                "minutes": minutes, "markdown": True}
 
     if track_id == config.TRACK_CSCA:
-        block_no, title, task, link, minutes = content.csca_task(content_index)
-        text = (
-            f"📐 *CSCA Math · блок {block_no}*\n"
-            f"*{title}*\n\n"
-            f"{task}\n\n"
-            f"~{minutes} мин."
+        block_no, title, english, russian, link, task, minutes = \
+            content.csca_task(content_index)
+        full = (
+            f"📐 CSCA Math · блок {block_no}\n"
+            f"{title}\n\n"
+            f"🇬🇧 ENGLISH\n{english}\n\n"
+            f"🇷🇺 РУССКИЙ\n{russian}\n\n"
+            f"▶ Практика (~{minutes} мин)\n{task}"
         )
-        return text, link, title, minutes
+        return {"chunks": split_chunks(full), "link": link, "title": title,
+                "minutes": minutes, "markdown": False}
 
     if track_id == config.TRACK_EGE:
         title, link, minutes = content.ege_task(content_index)
@@ -39,9 +87,11 @@ def build_reminder(track_id: str, content_index: int):
             f"Полный вариант по таймеру, ~{minutes} мин. "
             f"После — разбор ошибок."
         )
-        return text, link, title, minutes
+        return {"chunks": [text], "link": link, "title": title,
+                "minutes": minutes, "markdown": True}
 
-    return "Напоминание", config.__dict__.get("HUB", ""), "task", 0
+    return {"chunks": ["Напоминание"], "link": "", "title": "task",
+            "minutes": 0, "markdown": True}
 
 
 def action_keyboard(hid: int, link: str, link_label="Открыть"):
@@ -90,7 +140,7 @@ def why_response(track_id: str, reason: str):
     if reason == "hard":
         return (
             f"Понял. Сделаем *{title}* легче: бери половину задания и просто "
-            f"отметь «Готово». Полдела — уже дело. Завтра пришлю как обычно."
+            f"отметь «Готово». Полдела — уже дело. В следующий раз пришлю как обычно."
         )
     if reason == "notime":
         return (

@@ -37,6 +37,7 @@ async def _post_init(app: Application):
         ("report", "недельный отчёт"),
         ("tz", "часовой пояс"),
         ("csca", "ресурсы по математике"),
+        ("duo", "про Duolingo Test"),
         ("help", "помощь"),
     ])
     log.info("bot ready")
@@ -63,6 +64,7 @@ def main():
     app.add_handler(CommandHandler("tz", handlers.cmd_tz))
     app.add_handler(CommandHandler("report", handlers.cmd_report))
     app.add_handler(CommandHandler("csca", handlers.cmd_csca))
+    app.add_handler(CommandHandler("duo", handlers.cmd_duo))
     app.add_handler(CallbackQueryHandler(handlers.on_callback))
 
     # Тик раз в минуту — сердце напоминаний.

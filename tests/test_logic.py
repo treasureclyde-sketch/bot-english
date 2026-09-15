@@ -99,11 +99,40 @@ def test_content_progression():
     n0, t0, l0, m0 = content.six_min_task(0)
     n1, t1, l1, m1 = content.six_min_task(1)
     assert t0 != t1 and m0 == 10
-    b, title, task, link, minutes = content.csca_task(0)
+    # CSCA теперь двуязычный урок: (block, title, english, russian, link, task, min)
+    b, title, english, russian, link, task, minutes = content.csca_task(0)
     assert b == 1 and link == content.CSCA_APP
-    # За концом программы — повтор последнего блока (mock).
-    far = content.csca_task(len(content.CSCA_PROGRAM) + 5)
-    assert far[3] == content.CSCA_APP
+    assert english and russian and english != russian
+    # За концом программы — повтор timed mock.
+    far = content.csca_task(len(content.CSCA_LESSONS) + 5)
+    assert far[4] == content.CSCA_APP
+    assert "mock" in far[1].lower() or "Timed" in far[1]
+
+
+def test_det_content():
+    num, title, desc, tip, link, minutes = content.det_task(0)
+    assert num == 1 and title and desc
+    assert link == content.DET_PRACTICE
+    # Ротация по кругу.
+    wrapped = content.det_task(len(content.DET_PROGRAM))
+    assert wrapped[1] == content.det_task(0)[1]
+
+
+def test_sync_tracks_adds_new_track():
+    s = _store()
+    s.ensure_user(1, 100)
+    # Симулируем старого пользователя: удаляем Duolingo и откатываем версию схемы.
+    s.conn.execute("DELETE FROM tracks WHERE user_id=1 AND track_id=?",
+                   (config.TRACK_DET,))
+    s.conn.execute("UPDATE tracks SET cadence='daily', n_days=1 WHERE user_id=1"
+                   " AND track_id=?", (config.TRACK_6MIN,))
+    s.set_meta(1, "tracks_schema_v", "1")
+    s.conn.commit()
+    s.sync_tracks(1)
+    tracks = {t["track_id"] for t in s.get_tracks(1)}
+    assert config.TRACK_DET in tracks  # трек добавлен
+    six = s.get_track(1, config.TRACK_6MIN)
+    assert six["cadence"] == "every_n_days" and six["n_days"] == 2  # кадентность обновлена
 
 
 def test_monthly_underperform_suggestion():

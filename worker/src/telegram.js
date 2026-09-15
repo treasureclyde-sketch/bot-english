@@ -16,10 +16,13 @@ async function call(env, method, payload) {
 }
 
 export function sendMessage(env, chatId, text, opts = {}) {
+  // parseMode по умолчанию Markdown; передай parseMode:null для plain-текста
+  // (математические уроки CSCA со знаками ^, _, * ломали бы разметку).
+  const pm = "parseMode" in opts ? opts.parseMode : "Markdown";
   return call(env, "sendMessage", {
     chat_id: chatId,
     text,
-    parse_mode: "Markdown",
+    parse_mode: pm || undefined,
     disable_web_page_preview: opts.disablePreview ?? false,
     reply_markup: opts.replyMarkup,
   });

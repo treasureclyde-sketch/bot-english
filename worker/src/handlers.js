@@ -4,7 +4,7 @@
 import {
   TRACK_ORDER, TRACK_TITLES, TRACK_CSCA, DEFAULT_TZ,
 } from "./config.js";
-import { CSCA_RESOURCES } from "./content.js";
+import { CSCA_RESOURCES, DET_RESOURCES } from "./content.js";
 import * as db from "./db.js";
 import * as sched from "./scheduling.js";
 import * as rem from "./reminders.js";
@@ -56,6 +56,7 @@ async function handleMessage(env, msg) {
     case "/tz": return cmdTz(env, uid, chatId, args);
     case "/report": return cmdReport(env, uid, chatId);
     case "/csca": return cmdCsca(env, chatId);
+    case "/duo": return cmdDuo(env, chatId);
     default: return tg.sendMessage(env, chatId, "Не знаю такую команду. /help");
   }
 }
@@ -70,15 +71,17 @@ async function initFires(env, uid, tz) {
 
 async function cmdStart(env, uid, chatId) {
   const isNew = await db.ensureUser(env, uid, chatId);
+  await db.syncTracks(env, uid); // догнать треки: Duolingo + новые кадентности
   const prof = await db.getProfile(env, uid);
   await initFires(env, uid, prof.tz);
   const hello = isNew ? "Привет! " : "С возвращением! ";
-  const text = `${hello}Я держу твой ритм по трём трекам:\n\n` +
-    "🎧 *6 Minute English* — каждый день, 10 мин\n" +
-    "📐 *CSCA Math* — раз в 2 дня, ~40 мин\n" +
+  const text = `${hello}Я держу твой ритм по четырём трекам:\n\n` +
+    "🎧 *6 Minute English* — раз в 2 дня, 10 мин\n" +
+    "🦉 *Duolingo Test* — раз в 2 дня, ~20 мин (для вузов Китая)\n" +
+    "📐 *CSCA Math* — раз в 3 дня, подробный урок EN→RU + практика\n" +
     "🧮 *Пробник ЕГЭ* — раз в неделю, ~2 ч\n\n" +
     "Воскресенье — выходной, напоминаний нет.\n\n" +
-    "Команды: /status /tracks /pause /report /csca /help";
+    "Команды: /status /tracks /pause /report /csca /duo /help";
   await tg.sendMessage(env, chatId, text);
 }
 
@@ -91,7 +94,8 @@ function cmdHelp(env, chatId) {
     "/resume — снять паузу\n" +
     "/tz Asia/Yekaterinburg — часовой пояс\n" +
     "/report — недельный отчёт сейчас\n" +
-    "/csca — ресурсы по математике\n\n" +
+    "/csca — ресурсы по математике\n" +
+    "/duo — про Duolingo Test и ресурсы\n\n" +
     "В каждом напоминании: [🔗 ссылка] [✅ Готово] [🕑 Позже] [⏭ Пропустить].");
 }
 
@@ -205,6 +209,19 @@ function cmdCsca(env, chatId) {
   for (const [name, url, note] of CSCA_RESOURCES) lines.push(`• [${name}](${url}) — ${note}`);
   lines.push("");
   lines.push("_Правило: сначала прогоняй пробники и лови слабые темы, потом добивай именно их._");
+  return tg.sendMessage(env, chatId, lines.join("\n"), { disablePreview: true });
+}
+
+function cmdDuo(env, chatId) {
+  const lines = ["🦉 *Duolingo English Test — для поступления в Китай*", ""];
+  lines.push("Адаптивный тест ~1 ч, балл 10–160. Многие вузы Китая принимают " +
+    "*100–120+*, топовые (Tsinghua, Peking, Fudan) — *120+*. Проверь минимум " +
+    "своих вузов заранее.");
+  lines.push("");
+  for (const [name, url, note] of DET_RESOURCES) lines.push(`• [${name}](${url}) — ${note}`);
+  lines.push("");
+  lines.push("_План: раз в 2 дня бот присылает конкретный тип задания DET с " +
+    "подсказкой. Раз в пару недель — полный пробный тест по кнопке._");
   return tg.sendMessage(env, chatId, lines.join("\n"), { disablePreview: true });
 }
 

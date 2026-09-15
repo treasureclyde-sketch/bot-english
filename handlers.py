@@ -55,6 +55,8 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     store = _store(context)
     uid = update.effective_user.id
     is_new = store.ensure_user(uid, update.effective_chat.id)
+    # Догоняем треки до актуальных дефолтов (новый Duolingo, новые кадентности).
+    store.sync_tracks(uid)
 
     # Инициализируем next_fire для треков, если ещё не заданы.
     prof = store.get_profile(uid)
@@ -65,12 +67,13 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     hello = "Привет! " if is_new else "С возвращением! "
     text = (
-        f"{hello}Я держу твой ритм по трём трекам:\n\n"
-        "🎧 *6 Minute English* — каждый день, 10 мин\n"
-        "📐 *CSCA Math* — раз в 2 дня, ~40 мин\n"
+        f"{hello}Я держу твой ритм по четырём трекам:\n\n"
+        "🎧 *6 Minute English* — раз в 2 дня, 10 мин\n"
+        "🦉 *Duolingo Test* — раз в 2 дня, ~20 мин (для вузов Китая)\n"
+        "📐 *CSCA Math* — раз в 3 дня, подробный урок EN→RU + практика\n"
         "🧮 *Пробник ЕГЭ* — раз в неделю, ~2 ч\n\n"
         "Воскресенье — выходной, напоминаний нет.\n\n"
-        "Команды: /status /tracks /pause /report /csca /help"
+        "Команды: /status /tracks /pause /report /csca /duo /help"
     )
     await update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN)
 
@@ -86,7 +89,8 @@ async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/resume — снять паузу\n"
         "/tz Asia/Yekaterinburg — часовой пояс\n"
         "/report — недельный отчёт сейчас\n"
-        "/csca — ресурсы по математике\n\n"
+        "/csca — ресурсы по математике\n"
+        "/duo — про Duolingo Test и ресурсы\n\n"
         "В каждом напоминании: [🔗 ссылка] [✅ Готово] [🕑 Позже] [⏭ Пропустить].",
         parse_mode=ParseMode.MARKDOWN,
     )
@@ -258,6 +262,23 @@ async def cmd_csca(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lines.append("")
     lines.append("_Правило: сначала прогоняй пробники и лови слабые темы, "
                  "потом добивай именно их._")
+    await update.message.reply_text("\n".join(lines), parse_mode=ParseMode.MARKDOWN,
+                                    disable_web_page_preview=True)
+
+
+async def cmd_duo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await _guard(update):
+        return
+    lines = ["🦉 *Duolingo English Test — для поступления в Китай*", ""]
+    lines.append("Адаптивный тест ~1 ч, балл 10–160. Многие вузы Китая принимают "
+                 "*100–120+*, топовые (Tsinghua, Peking, Fudan) — *120+*. "
+                 "Проверь минимум своих вузов заранее.")
+    lines.append("")
+    for name, url, note in content.DET_RESOURCES:
+        lines.append(f"• [{name}]({url}) — {note}")
+    lines.append("")
+    lines.append("_План: раз в 2 дня бот присылает конкретный тип задания DET "
+                 "с подсказкой. Раз в пару недель — полный пробный тест по кнопке._")
     await update.message.reply_text("\n".join(lines), parse_mode=ParseMode.MARKDOWN,
                                     disable_web_page_preview=True)
 

@@ -128,7 +128,41 @@ class Store:
                  None),
             )
         self.conn.commit()
+        self.set_meta(user_id, "tracks_schema_v", config.TRACKS_SCHEMA_VERSION)
         return True
+
+    def sync_tracks(self, user_id: int):
+        """Догоняет треки существующего пользователя до актуальных дефолтов:
+        добавляет новые треки (напр. Duolingo) и один раз обновляет кадентности.
+
+        Идемпотентно: версия схемы хранится в meta, миграция срабатывает однажды.
+        """
+        existing = {t["track_id"] for t in self.get_tracks(user_id)}
+        for tid, cfg in config.DEFAULT_TRACKS.items():
+            if tid in existing:
+                continue
+            self.conn.execute(
+                "INSERT INTO tracks (user_id, track_id, enabled, cadence, n_days,"
+                " weekday, hour, minute, duration_min, next_fire_at, content_index)"
+                " VALUES (?,?,?,?,?,?,?,?,?,?,0)",
+                (user_id, tid, cfg["enabled"], cfg["cadence"], cfg["n_days"],
+                 cfg["weekday"], cfg["hour"], cfg["minute"], cfg["duration_min"],
+                 None),
+            )
+        self.conn.commit()
+
+        ver = int(self.get_meta(user_id, "tracks_schema_v", "1") or "1")
+        if ver < config.TRACKS_SCHEMA_VERSION:
+            # Обновляем кадентность 6min и CSCA до новых дефолтов (2 и 3 дня),
+            # время (hour/minute) не трогаем — вдруг пользователь его двигал.
+            for tid in (config.TRACK_6MIN, config.TRACK_CSCA):
+                cfg = config.DEFAULT_TRACKS[tid]
+                self.update_track(
+                    user_id, tid,
+                    cadence=cfg["cadence"], n_days=cfg["n_days"],
+                    duration_min=cfg["duration_min"], next_fire_at=None,
+                )
+            self.set_meta(user_id, "tracks_schema_v", config.TRACKS_SCHEMA_VERSION)
 
     def get_profile(self, user_id: int):
         return self.conn.execute(
