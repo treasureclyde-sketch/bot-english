@@ -3,7 +3,7 @@
 
 import assert from "node:assert";
 import * as sched from "../src/scheduling.js";
-import { sixMinTask, cscaTask, egeTask, detTask, CSCA_LESSONS, DET_PROGRAM } from "../src/content.js";
+import { sixMinTask, cscaTask, egeTask, detTask, CSCA_LESSONS, DET_PROGRAM, CSCA_PRACTICE } from "../src/content.js";
 import { buildReminder, splitChunks } from "../src/reminders.js";
 import { DEFAULT_TRACKS, TRACK_6MIN, TRACK_EGE, TRACK_CSCA, TRACK_DET, QUIET_WEEKDAY } from "../src/config.js";
 
@@ -75,18 +75,21 @@ t("isQuietDay Sunday", () => {
 t("content progression", () => {
   assert.notEqual(sixMinTask(0).title, sixMinTask(1).title);
   assert.equal(cscaTask(0).block, 1);
-  assert.equal(cscaTask(CSCA_LESSONS.length + 5).link, "https://csca.app"); // повтор mock
+  // темы цикличны: после последней — снова первая
+  assert.equal(cscaTask(CSCA_LESSONS.length).block, 1);
+  assert.equal(cscaTask(CSCA_LESSONS.length).title, cscaTask(0).title);
   assert.equal(egeTask(0).minutes, 120);
 });
 
-// CSCA — двуязычный урок; DET ротуется по кругу
-t("csca lesson bilingual", () => {
+// CSCA — урок из учебника; шлётся без Markdown, английская лексика + русская теория
+t("csca lesson from textbook", () => {
   const c = cscaTask(0);
-  assert.ok(c.english && c.russian && c.english !== c.russian);
+  assert.equal(c.link, CSCA_PRACTICE);
+  assert.ok(c.body.includes("EXAM VOCAB") && c.body.includes("ТЕОРИЯ"));
   const msg = buildReminder(TRACK_CSCA, 0);
   assert.equal(msg.markdown, false); // математика без Markdown
   const joined = msg.chunks.join("\n\n");
-  assert.ok(joined.includes("ENGLISH") && joined.includes("РУССКИЙ"));
+  assert.ok(joined.includes("EXAM VOCAB") && joined.includes("ФОРМУЛЫ"));
   assert.ok(msg.chunks.every((x) => x.length <= 3500));
 });
 

@@ -214,9 +214,9 @@ function cmdCsca(env, chatId) {
 
 function cmdDuo(env, chatId) {
   const lines = ["🦉 *Duolingo English Test — для поступления в Китай*", ""];
-  lines.push("Адаптивный тест ~1 ч, балл 10–160. Многие вузы Китая принимают " +
-    "*100–120+*, топовые (Tsinghua, Peking, Fudan) — *120+*. Проверь минимум " +
-    "своих вузов заранее.");
+  lines.push("Адаптивный тест ~1 ч, балл 10–160. *Твоя цель — 110–120* (этого " +
+    "хватает большинству программ; топовые вузы иногда просят 120+). Проверь " +
+    "минимум своих вузов заранее.");
   lines.push("");
   for (const [name, url, note] of DET_RESOURCES) lines.push(`• [${name}](${url}) — ${note}`);
   lines.push("");

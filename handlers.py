@@ -270,9 +270,9 @@ async def cmd_duo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await _guard(update):
         return
     lines = ["🦉 *Duolingo English Test — для поступления в Китай*", ""]
-    lines.append("Адаптивный тест ~1 ч, балл 10–160. Многие вузы Китая принимают "
-                 "*100–120+*, топовые (Tsinghua, Peking, Fudan) — *120+*. "
-                 "Проверь минимум своих вузов заранее.")
+    lines.append("Адаптивный тест ~1 ч, балл 10–160. *Твоя цель — 110–120* "
+                 "(этого хватает большинству программ; топовые вузы иногда просят "
+                 "120+). Проверь минимум своих вузов заранее.")
     lines.append("")
     for name, url, note in content.DET_RESOURCES:
         lines.append(f"• [{name}]({url}) — {note}")

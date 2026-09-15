@@ -67,14 +67,12 @@ def build_reminder(track_id: str, content_index: int):
                 "minutes": minutes, "markdown": True}
 
     if track_id == config.TRACK_CSCA:
-        block_no, title, english, russian, link, task, minutes = \
-            content.csca_task(content_index)
+        block_no, title, body, link, minutes = content.csca_task(content_index)
+        total = len(content.CSCA_LESSONS)
         full = (
-            f"📐 CSCA Math · блок {block_no}\n"
+            f"📐 CSCA Math · тема {block_no}/{total} (~{minutes} мин)\n"
             f"{title}\n\n"
-            f"🇬🇧 ENGLISH\n{english}\n\n"
-            f"🇷🇺 РУССКИЙ\n{russian}\n\n"
-            f"▶ Практика (~{minutes} мин)\n{task}"
+            f"{body}"
         )
         return {"chunks": split_chunks(full), "link": link, "title": title,
                 "minutes": minutes, "markdown": False}

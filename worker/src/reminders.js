@@ -3,7 +3,7 @@
 // со знаками ^, _, *), при необходимости бьётся на несколько сообщений.
 
 import { TRACK_6MIN, TRACK_EGE, TRACK_CSCA, TRACK_DET, TRACK_TITLES } from "./config.js";
-import { sixMinTask, cscaTask, egeTask, detTask } from "./content.js";
+import { sixMinTask, cscaTask, egeTask, detTask, CSCA_LESSONS } from "./content.js";
 
 const CHUNK_LIMIT = 3500;
 
@@ -42,11 +42,8 @@ export function buildReminder(trackId, contentIndex) {
   }
   if (trackId === TRACK_CSCA) {
     const t = cscaTask(contentIndex);
-    const full =
-      `📐 CSCA Math · блок ${t.block}\n${t.title}\n\n` +
-      `🇬🇧 ENGLISH\n${t.english}\n\n` +
-      `🇷🇺 РУССКИЙ\n${t.russian}\n\n` +
-      `▶ Практика (~${t.minutes} мин)\n${t.task}`;
+    const total = CSCA_LESSONS.length;
+    const full = `📐 CSCA Math · тема ${t.block}/${total} (~${t.minutes} мин)\n${t.title}\n\n${t.body}`;
     return { chunks: splitChunks(full), link: t.link, title: t.title, minutes: t.minutes, markdown: false };
   }
   if (trackId === TRACK_EGE) {

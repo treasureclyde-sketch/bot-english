@@ -99,14 +99,14 @@ def test_content_progression():
     n0, t0, l0, m0 = content.six_min_task(0)
     n1, t1, l1, m1 = content.six_min_task(1)
     assert t0 != t1 and m0 == 10
-    # CSCA теперь двуязычный урок: (block, title, english, russian, link, task, min)
-    b, title, english, russian, link, task, minutes = content.csca_task(0)
-    assert b == 1 and link == content.CSCA_APP
-    assert english and russian and english != russian
-    # За концом программы — повтор timed mock.
-    far = content.csca_task(len(content.CSCA_LESSONS) + 5)
-    assert far[4] == content.CSCA_APP
-    assert "mock" in far[1].lower() or "Timed" in far[1]
+    # CSCA — урок из учебника: (block, title, body, practice_link, minutes)
+    b, title, body, link, minutes = content.csca_task(0)
+    assert b == 1 and link == content.CSCA_PRACTICE
+    assert "EXAM VOCAB" in body and "ТЕОРИЯ" in body and "ФОРМУЛЫ" in body
+    # Темы цикличны: после последней возвращаемся к первой.
+    far = content.csca_task(len(content.CSCA_LESSONS))
+    assert far[0] == 1
+    assert far[1] == content.csca_task(0)[1]
 
 
 def test_det_content():
