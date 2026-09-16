@@ -36,6 +36,36 @@ export async function setActive(env, userId, active, pausedUntil) {
     .bind(active, pausedUntil ?? null, userId).run();
 }
 
+// --- Telegram Business -------------------------------------------------------
+export async function setAway(env, userId, away) {
+  await env.DB.prepare("UPDATE profile SET away=? WHERE user_id=?").bind(away ? 1 : 0, userId).run();
+}
+
+export async function setBusinessConnection(env, userId, connId, canReply) {
+  await env.DB.prepare("UPDATE profile SET biz_conn_id=?, biz_can_reply=? WHERE user_id=?")
+    .bind(connId ?? null, canReply ? 1 : 0, userId).run();
+}
+
+export async function addBizMessage(env, userId, chatId, role, content) {
+  await env.DB.prepare(
+    "INSERT INTO biz_messages (user_id, chat_id, role, content, created_at) VALUES (?,?,?,?,?)"
+  ).bind(userId, chatId, role, content, Date.now()).run();
+}
+
+export async function recentBizMessages(env, userId, chatId, limit = 10) {
+  const r = await env.DB.prepare(
+    "SELECT role, content FROM biz_messages WHERE user_id=? AND chat_id=? ORDER BY id DESC LIMIT ?"
+  ).bind(userId, chatId, limit).all();
+  return (r.results || []).reverse();
+}
+
+export async function trimBizMessages(env, userId, chatId, keep = 30) {
+  await env.DB.prepare(
+    "DELETE FROM biz_messages WHERE user_id=? AND chat_id=? AND id NOT IN " +
+    "(SELECT id FROM biz_messages WHERE user_id=? AND chat_id=? ORDER BY id DESC LIMIT ?)"
+  ).bind(userId, chatId, userId, chatId, keep).run();
+}
+
 // --- заметки ----------------------------------------------------------------
 export async function addNote(env, userId, text, tags) {
   const r = await env.DB.prepare(

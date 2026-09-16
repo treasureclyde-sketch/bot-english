@@ -18,8 +18,7 @@ export async function anthropicMessages(env, { system, messages, tools }) {
       thinking: THINKING,
       system,
       messages,
-      tools,
-      tool_choice: { type: "auto" },
+      ...(tools && tools.length ? { tools, tool_choice: { type: "auto" } } : {}),
     }),
   });
   const data = await res.json().catch(() => ({}));

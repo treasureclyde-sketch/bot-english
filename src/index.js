@@ -11,6 +11,7 @@ const COMMANDS = [
   { command: "notes", description: "последние заметки" },
   { command: "reminders", description: "активные напоминания" },
   { command: "tz", description: "часовой пояс" },
+  { command: "away", description: "автоответ от твоего лица вкл/выкл" },
   { command: "pause", description: "пауза на N дней" },
   { command: "resume", description: "снять паузу" },
   { command: "help", description: "помощь" },

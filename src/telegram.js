@@ -34,6 +34,8 @@ export async function sendMessage(env, chatId, text, opts = {}) {
       chat_id: chatId,
       text: chunks[i],
       disable_web_page_preview: true,
+      // Если задан — сообщение уходит ОТ ЛИЦА владельца (Telegram Business).
+      business_connection_id: opts.businessConnectionId,
       reply_markup: i === chunks.length - 1 ? opts.replyMarkup : undefined,
     });
   }
@@ -70,6 +72,6 @@ export function setMyCommands(env, commands) {
 export function setWebhook(env, url, secretToken) {
   return call(env, "setWebhook", {
     url, secret_token: secretToken,
-    allowed_updates: ["message", "callback_query"],
+    allowed_updates: ["message", "callback_query", "business_connection", "business_message"],
   });
 }

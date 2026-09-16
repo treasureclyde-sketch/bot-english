@@ -8,8 +8,24 @@ CREATE TABLE IF NOT EXISTS profile (
     evening_hour INTEGER DEFAULT 21,  -- час вечернего обзора
     active       INTEGER DEFAULT 1,
     paused_until INTEGER,             -- ms или NULL
-    created_at   INTEGER
+    created_at   INTEGER,
+    -- Telegram Business: автоответ от лица владельца
+    away         INTEGER DEFAULT 0,   -- 1 = бот отвечает за тебя в бизнес-чатах
+    biz_conn_id  TEXT,                -- business_connection_id (или NULL)
+    biz_can_reply INTEGER DEFAULT 0   -- выдал ли владелец право отвечать
 );
+
+-- Переписки бизнес-чатов (контекст для автоответа). role: them | me
+CREATE TABLE IF NOT EXISTS biz_messages (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id    INTEGER,              -- владелец (OWNER_ID)
+    chat_id    INTEGER,              -- собеседник/чат
+    role       TEXT,                 -- them (собеседник) | me (ответ от лица владельца)
+    content    TEXT,
+    created_at INTEGER
+);
+
+CREATE INDEX IF NOT EXISTS idx_biz_chat ON biz_messages (user_id, chat_id, id);
 
 -- Заметки: всё, что попросили запомнить.
 CREATE TABLE IF NOT EXISTS notes (
