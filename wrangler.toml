@@ -1,0 +1,19 @@
+name = "assistant-bot"
+main = "src/index.js"
+compatibility_date = "2024-09-23"
+
+# Cron: тик раз в минуту — проверяет напоминания, дедлайны, утренний/вечерний обзор.
+[triggers]
+crons = ["* * * * *"]
+
+# База D1. id подставится после `wrangler d1 create assistant-db`.
+[[d1_databases]]
+binding = "DB"
+database_name = "assistant-db"
+database_id = "REPLACE_WITH_YOUR_D1_ID"
+
+# Секреты (НЕ храним в файле — задаём через `wrangler secret put`):
+#   BOT_TOKEN          — токен бота от @BotFather
+#   OWNER_ID           — твой Telegram user_id (бот слушает только тебя)
+#   WEBHOOK_SECRET     — любая случайная строка (защита вебхука)
+#   ANTHROPIC_API_KEY  — ключ с console.anthropic.com
