@@ -8,6 +8,10 @@ export const ANTHROPIC_VERSION = "2023-06-01";
 export const MAX_TOKENS = 2048;
 export const MAX_TOOL_ITERS = 6; // предохранитель от зацикливания tool-use
 
+// Отключаем «размышление» у Sonnet: для разбора сообщений и вызова инструментов
+// оно не нужно, а так дешевле по выходным токенам и быстрее отклик.
+export const THINKING = { type: "disabled" };
+
 // Сколько последних сообщений диалога держим как контекст для LLM.
 export const HISTORY_LIMIT = 12;
 

@@ -33,9 +33,11 @@ const env = {
 // Также проверяем, что мы корректно шлём назад tool_result.
 let calls = 0;
 let sawToolResult = false;
+const bodies = [];
 globalThis.fetch = async (url, opts) => {
   assert.ok(String(url).includes("api.anthropic.com"));
   const body = JSON.parse(opts.body);
+  bodies.push(body);
   const last = body.messages[body.messages.length - 1];
   if (last.role === "user" && Array.isArray(last.content) &&
       last.content.some((b) => b.type === "tool_result")) {
@@ -80,5 +82,16 @@ assert.equal(hist.length, 2);
 assert.equal(hist[0].role, "user");
 assert.equal(hist[1].role, "assistant");
 
+// Оптимизации: кэш-брейкпоинт на стабильном блоке + thinking отключён.
+const b0 = bodies[0];
+assert.ok(Array.isArray(b0.system), "system — массив блоков");
+assert.equal(b0.system[0].cache_control.type, "ephemeral", "кэш на стабильном блоке");
+assert.ok(!b0.system[1].cache_control, "изменчивый блок без кэша");
+assert.equal(b0.thinking.type, "disabled", "thinking отключён");
+// Стабильный префикс байт-в-байт одинаков в обоих вызовах (иначе кэш промахнётся).
+assert.equal(bodies[0].system[0].text, bodies[1].system[0].text, "стабильный блок идентичен");
+assert.deepEqual(bodies[0].tools, bodies[1].tools, "каталог инструментов идентичен");
+
 console.log("ok  assistant tool-loop (mocked API)");
-console.log("\n1 passed");
+console.log("ok  caching breakpoint + thinking disabled in request");
+console.log("\n2 passed");

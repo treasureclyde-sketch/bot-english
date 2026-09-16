@@ -1,7 +1,9 @@
 // Вызов Claude Messages API (raw HTTP из воркера).
 
-import { MODEL, ANTHROPIC_VERSION, MAX_TOKENS } from "./config.js";
+import { MODEL, ANTHROPIC_VERSION, MAX_TOKENS, THINKING } from "./config.js";
 
+// system может быть массивом блоков — тогда cache_control на стабильном блоке
+// кэширует префикс (инструменты + инструкции), и повторные вызовы стоят ~10%.
 export async function anthropicMessages(env, { system, messages, tools }) {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -13,6 +15,7 @@ export async function anthropicMessages(env, { system, messages, tools }) {
     body: JSON.stringify({
       model: MODEL,
       max_tokens: MAX_TOKENS,
+      thinking: THINKING,
       system,
       messages,
       tools,
