@@ -3,6 +3,7 @@
 
 import * as db from "./db.js";
 import { sendMessage } from "./telegram.js";
+import { taskKeyboard } from "./ui.js";
 import { localInfo, fmtLocal, wallToUtc, nextRecurring } from "./time.js";
 
 export async function runTick(env) {
@@ -79,7 +80,9 @@ async function maybeDigests(env, user, now) {
     if (!overdue.length && !today.length) {
       lines.push("", open.length ? `Дедлайнов на сегодня нет. Открытых задач: ${open.length}.` : "Задач нет — чистый день. 🙌");
     }
-    await sendMessage(env, user.chat_id, lines.join("\n"));
+    const focus = [...overdue, ...today];
+    await sendMessage(env, user.chat_id, lines.join("\n"),
+      focus.length ? { replyMarkup: taskKeyboard(focus) } : {});
     await db.setMeta(env, uid, "last_morning", i.dateStr);
   }
 
@@ -94,7 +97,8 @@ async function maybeDigests(env, user, now) {
       lines.push("", "⚠️ Ещё висит (срок сегодня или раньше):");
       stillDue.forEach((t) => lines.push(`• #${t.id} ${t.title}`));
     }
-    await sendMessage(env, user.chat_id, lines.join("\n"));
+    await sendMessage(env, user.chat_id, lines.join("\n"),
+      stillDue.length ? { replyMarkup: taskKeyboard(stillDue) } : {});
     await db.setMeta(env, uid, "last_evening", i.dateStr);
   }
 }

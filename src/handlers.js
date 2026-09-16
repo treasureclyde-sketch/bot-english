@@ -5,6 +5,7 @@ import * as db from "./db.js";
 import * as tg from "./telegram.js";
 import { handleUserText } from "./assistant.js";
 import { fmtLocal, validTz } from "./time.js";
+import { taskKeyboard } from "./ui.js";
 import { DEFAULT_TZ } from "./config.js";
 
 function authorized(env, userId) {
@@ -86,18 +87,24 @@ function cmdHelp(env, chatId) {
     "/resume — снять паузу");
 }
 
-async function cmdTasks(env, uid, chatId) {
-  const prof = await db.getProfile(env, uid);
-  if (!prof) return tg.sendMessage(env, chatId, "Напиши /start сначала.");
+// Текст + клавиатура открытых задач (используется в /tasks и при нажатии кнопки).
+async function renderTaskList(env, uid, tz) {
   const rows = await db.listTasks(env, uid, "open", 100);
-  if (!rows.length) return tg.sendMessage(env, chatId, "Открытых задач нет. 🙌");
-  const lines = ["📋 Открытые задачи:"];
+  if (!rows.length) return { text: "Открытых задач нет. 🙌", keyboard: { inline_keyboard: [] } };
+  const lines = ["📋 Открытые задачи (жми ✅, когда сделал):"];
   rows.forEach((t) => {
-    const due = t.due_at ? ` — до ${fmtLocal(t.due_at, prof.tz)}` : "";
+    const due = t.due_at ? ` — до ${fmtLocal(t.due_at, tz)}` : "";
     const subj = t.subject ? ` [${t.subject}]` : "";
     lines.push(`• #${t.id} ${t.title}${subj}${due}`);
   });
-  await tg.sendMessage(env, chatId, lines.join("\n"));
+  return { text: lines.join("\n"), keyboard: taskKeyboard(rows) };
+}
+
+async function cmdTasks(env, uid, chatId) {
+  const prof = await db.getProfile(env, uid);
+  if (!prof) return tg.sendMessage(env, chatId, "Напиши /start сначала.");
+  const { text, keyboard } = await renderTaskList(env, uid, prof.tz);
+  await tg.sendMessage(env, chatId, text, { replyMarkup: keyboard });
 }
 
 async function cmdNotes(env, uid, chatId) {
@@ -142,6 +149,27 @@ async function cmdResume(env, uid, chatId) {
 }
 
 async function handleCallback(env, q) {
-  // Пока инлайн-кнопок нет — просто подтверждаем.
+  const from = q.from;
+  if (!from || !authorized(env, from.id)) {
+    return tg.answerCallbackQuery(env, q.id, "Нет доступа");
+  }
+  const uid = from.id;
+  const chatId = q.message.chat.id;
+  const messageId = q.message.message_id;
+  const [action, idStr] = (q.data || "").split(":");
+
+  if (action === "done") {
+    const id = Number(idStr);
+    const task = await db.getTask(env, uid, id);
+    if (!task) return tg.answerCallbackQuery(env, q.id, "Задача уже неактуальна");
+    if (task.status !== "done") await db.completeTask(env, uid, id);
+    await tg.answerCallbackQuery(env, q.id, `✅ ${task.title.slice(0, 60)}`);
+    // Перерисовываем сообщение под актуальный список открытых задач.
+    const prof = await db.getProfile(env, uid);
+    const { text, keyboard } = await renderTaskList(env, uid, prof.tz);
+    await tg.editMessageText(env, chatId, messageId, text, { replyMarkup: keyboard });
+    return;
+  }
+
   await tg.answerCallbackQuery(env, q.id);
 }
